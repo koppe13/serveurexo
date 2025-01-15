@@ -1,4 +1,5 @@
 const Thing = require('../models/Thing');
+const fs = require('fs');
 
 exports.createThing = (req, res, next) => {
   const thingObject = JSON.parse(req.body.thing);
@@ -28,23 +29,33 @@ exports.modifyThing = (req, res, next) => {
     if (thing.userId != req.auth.userId) {
       res.status(401).json({ message : 'Non-Autorisé '});
     } else {
-       Thing.updateOne({_Id: req.params.id}, {...thingObject, _id: req.params.id})
-       .then(() => { res.status(200).json({message: 'Objet modifié'})})
+       Thing.updateOne({_id: req.params.id}, {...thingObject, _id: req.params.id})
+       .then(() =>  res.status(200).json({message: 'Objet modifié'}))
        .catch(error => { res.status(401).json( { error })});
     }
   })
   .catch((error) => {
     res.status(404).json({ error });
   });
-    //Thing.updateOne({_id: req.params.id }, {...req.body, _id: req.params.id })
-    //  .then(() => res.status(200).json({message:'Objet modifié'}))
-    //  .catch(error => res.status(404).json({ error }));
-};
+  };
 
 exports.deleteThing = (req, res, next) => {
-    Thing.deleteOne({_id: req.params.id })
-        .then(() => res.status(200).json({message: 'Objet Supprimé'}))
-        .catch(error => res.status(404).json({ error }));
+  Thing.findOne({_id: req.params.id})
+    .then(thing => {
+        if (thing.userId != req.auth.userId) {
+           res.status(401).json({message: 'Non-autorisé' });
+        } else {
+           const filename = thing.imageUrl.split('/images/')[1];
+           fs.unlink(`images/${filename}`, () => {
+             Thing.deleteOne({_id: req.params.id})
+                .then(() => {res.status(208).json ({message: 'objet supprimé'})})
+                .catch(error => res.status(404).json({ error }));
+           });
+        }
+    })
+    .catch( error => {
+      res.status(500).json({ error });
+    })
   };
 
 exports.getOneThing = (req, res, next) => {
